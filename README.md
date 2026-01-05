@@ -2,6 +2,11 @@
 
 Laravel integration for the [Sonarr PHP SDK](https://github.com/martincamen/sonarr-php), providing a seamless experience for interacting with Sonarr using unified domain models from [php-arr-core](https://github.com/martincamen/php-arr-core).
 
+A [Laravel Radarr integration](https://github.com/martincamen/laravel-radarr) is also available.
+
+Also available:
+- [Laravel Radarr integration](https://github.com/martincamen/laravel-radarr)
+
 ## Features
 
 - Unified API using canonical domain models from `php-arr-core`
@@ -44,14 +49,14 @@ SONARR_URL_BASE=
 
 ### Configuration Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `SONARR_HOST` | Hostname or IP address of your Sonarr server | `localhost` |
-| `SONARR_PORT` | Port number for your Sonarr server | `8989` |
-| `SONARR_API_KEY` | Your Sonarr API key (Settings > General > Security) | - |
-| `SONARR_USE_HTTPS` | Use HTTPS for connections | `false` |
-| `SONARR_TIMEOUT` | Request timeout in seconds | `30` |
-| `SONARR_URL_BASE` | URL base for reverse proxy subpaths (e.g., `/sonarr`) | - |
+| Option             | Description                                           | Default     |
+|--------------------|-------------------------------------------------------|-------------|
+| `SONARR_HOST`      | Hostname or IP address of your Sonarr server          | `localhost` |
+| `SONARR_PORT`      | Port number for your Sonarr server                    | `8989`      |
+| `SONARR_API_KEY`   | Your Sonarr API key (Settings > General > Security)   | -           |
+| `SONARR_USE_HTTPS` | Use HTTPS for connections                             | `false`     |
+| `SONARR_TIMEOUT`   | Request timeout in seconds                            | `30`        |
+| `SONARR_URL_BASE`  | URL base for reverse proxy subpaths (e.g., `/sonarr`) | -           |
 
 ## Usage
 
@@ -71,28 +76,24 @@ $series = Sonarr::series();
 // Get a specific series by ID
 $show = Sonarr::seriesById(1);
 
-// Get system status
-$status = Sonarr::systemStatus();
+// Get system summary
+$summary = Sonarr::systemSummary();
 ```
 
 ### Dependency Injection
 
-You can also inject the `SonarrClient` directly:
+You can also inject `Sonarr` directly:
 
 ```php
-use Sonarr\SDK\SonarrClient;
+use MartinCamen\LaravelSonarr\Facades\Sonarr;
 
 class SeriesController
 {
-    public function __construct(
-        private SonarrClient $sonarr,
-    ) {}
+    public function __construct(private Sonarr $sonarr) {}
 
     public function index()
     {
-        $series = $this->sonarr->series();
-
-        return view('series.index', ['series' => $series]);
+        return view('series.index', ['series' => $this->sonarr->series()]);
     }
 }
 ```
@@ -103,7 +104,9 @@ The `downloads()` method returns a `DownloadItemCollection` containing all activ
 
 ```php
 use MartinCamen\LaravelSonarr\Facades\Sonarr;
+use MartinCamen\ArrCore\Domain\Download\DownloadItemCollection;
 
+/** @var DownloadItemCollection $downloads */
 $downloads = Sonarr::downloads();
 
 // Check if there are any downloads
@@ -139,15 +142,17 @@ The `series()` method returns an array of `Series` domain objects:
 
 ```php
 use MartinCamen\LaravelSonarr\Facades\Sonarr;
+use MartinCamen\ArrCore\Domain\Media\Series;
 
 // Get all series
+/** @var Series[] $series */
 $series = Sonarr::series();
 
 foreach ($series as $show) {
     echo "{$show->title} ({$show->year})";
 
     // Check series status
-    if ($show->isEnded()) {
+    if ($show->hasEnded()) {
         echo ' - Ended';
     }
 
@@ -156,18 +161,50 @@ foreach ($series as $show) {
 }
 
 // Get a specific series
+/** @var Series $show */
 $show = Sonarr::seriesById(1);
+
 echo $show->title;
 ```
 
-## System Status
-
-The `systemStatus()` method returns a `SystemStatus` object with system health information:
+## System information
 
 ```php
 use MartinCamen\LaravelSonarr\Facades\Sonarr;
 
-$status = Sonarr::systemStatus();
+// Get system status information
+$system = Sonarr::system()->status();
+
+echo $system->version;
+
+// Get system health information
+$health = Sonarr::system()->health();
+
+foreach ($health->warnings() as $warning) {
+    echo $warning->type . ': ' . $warning->message;
+}
+
+// Get disk space information
+$diskSpace = Sonarr::system()->diskSpace();
+
+echo $diskSpace->totalFreeSpace();
+
+// Get system tasks information
+Sonarr::system()->tasks();
+Sonarr::system()->task(id: 1);
+
+// Get available backups
+Sonarr::system()->backups();
+```
+
+## System summary
+
+The `systemSummary()` method returns a `SystemSummary` object with combined status information and health information:
+
+```php
+use MartinCamen\LaravelSonarr\Facades\Sonarr;
+
+$status = Sonarr::systemSummary();
 
 echo "Sonarr Version: {$status->version}";
 echo "Branch: {$status->branch}";
@@ -193,13 +230,13 @@ echo "Uptime: {$status->uptime()}";
 
 All responses use canonical domain models from `php-arr-core`, providing a unified interface across all *arr services:
 
-| Model | Description |
-|-------|-------------|
-| `DownloadItemCollection` | Collection of active downloads |
-| `DownloadItem` | Individual download with status, progress, size |
-| `Series` | TV series with metadata, status, and file information |
-| `SystemStatus` | System status with health issues |
-| `HealthIssue` | Individual health check issue |
+| Model                    | Description                                           |
+|--------------------------|-------------------------------------------------------|
+| `DownloadItemCollection` | Collection of active downloads                        |
+| `DownloadItem`           | Individual download with status, progress, size       |
+| `Series`                 | TV series with metadata, status, and file information |
+| `SystemSummary`          | System summary (status & health issues)               |
+| `HealthIssue`            | Individual health check issue                         |
 
 ### Value Objects
 
@@ -281,9 +318,9 @@ You can provide custom responses to the fake:
 
 ```php
 use MartinCamen\LaravelSonarr\Facades\Sonarr;
-use Sonarr\Testing\Factories\DownloadFactory;
-use Sonarr\Testing\Factories\SeriesFactory;
-use Sonarr\Testing\Factories\SystemStatusFactory;
+use MartinCamen\Sonarr\Testing\Factories\DownloadFactory;
+use MartinCamen\Sonarr\Testing\Factories\SeriesFactory;
+use MartinCamen\Sonarr\Testing\Factories\SystemStatusFactory;
 
 public function testWithCustomSeries(): void
 {
@@ -316,7 +353,7 @@ public function testWithCustomDownloads(): void
 public function testWithCustomSystemStatus(): void
 {
     Sonarr::fake([
-        'systemStatus' => SystemStatusFactory::make([
+        'systemSummary' => SystemStatusFactory::make([
             'version' => '4.0.0.0',
             'isProduction' => true,
         ]),
@@ -333,6 +370,8 @@ public function testWithCustomSystemStatus(): void
 The fake provides several assertion methods:
 
 ```php
+use MartinCamen\LaravelSonarr\Facades\Sonarr;
+
 $fake = Sonarr::fake();
 
 // Assert a method was called
@@ -358,13 +397,14 @@ $calls = $fake->getCalls();
 
 ```php
 use MartinCamen\LaravelSonarr\Facades\Sonarr;
+use MartinCamen\ArrCore\Domain\Media\Series;
 
 class DashboardController extends Controller
 {
     public function index()
     {
         // Get system status
-        $status = Sonarr::systemStatus();
+        $summary = Sonarr::systemSummary();
 
         // Get active downloads
         $downloads = Sonarr::downloads();
@@ -375,11 +415,11 @@ class DashboardController extends Controller
         // Filter series for display
         $endedSeries = array_filter(
             $series,
-            fn ($show) => $show->isEnded(),
+            fn(Series $show) => $show->hasEnded(),
         );
 
         return view('dashboard', [
-            'status'        => $status,
+            'summary'       => $summary,
             'downloads'     => $downloads->sortByPriority(),
             'downloadCount' => $downloads->count(),
             'seriesCount'   => count($series),
@@ -393,7 +433,7 @@ class DashboardController extends Controller
 
 ```php
 use MartinCamen\LaravelSonarr\Facades\Sonarr;
-use Sonarr\Exceptions\{
+use MartinCamen\Sonarr\Exceptions\{
     AuthenticationException,
     SonarrConnectionException,
     NotFoundException,
@@ -403,14 +443,15 @@ try {
     $series = Sonarr::seriesById(999);
 } catch (AuthenticationException $e) {
     // Invalid API key
-    return redirect()->back()->with('error', 'Invalid Sonarr API key');
+    return back()->with('error', 'Invalid Sonarr API key');
 } catch (NotFoundException $e) {
     // Series not found
     abort(404, 'Series not found');
 } catch (SonarrConnectionException $e) {
     // Connection error
     logger()->error('Could not connect to Sonarr: ' . $e->getMessage());
-    return redirect()->back()->with('error', 'Sonarr server unavailable');
+
+    return back()->with('error', 'Sonarr server unavailable');
 }
 ```
 

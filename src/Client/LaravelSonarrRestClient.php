@@ -20,7 +20,7 @@ use MartinCamen\Sonarr\Config\SonarrConfiguration;
  *
  * @link https://wiki.servarr.com/sonarr/api
  */
-class LaravelRestClient implements RestClientInterface
+class LaravelSonarrRestClient implements RestClientInterface
 {
     public function __construct(protected SonarrConfiguration $config) {}
 

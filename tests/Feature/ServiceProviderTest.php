@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use MartinCamen\ArrCore\Client\RestClientInterface;
-use MartinCamen\LaravelSonarr\Client\LaravelRestClient;
+use MartinCamen\LaravelSonarr\Client\LaravelSonarrRestClient;
 use MartinCamen\LaravelSonarr\Facades\Sonarr;
 use MartinCamen\Sonarr\Config\SonarrConfiguration;
 use MartinCamen\Sonarr\Sonarr as CoreSonarr;
@@ -22,15 +22,15 @@ it('registers the SonarrConfig singleton', function (): void {
 });
 
 it('registers the RestClientInterface singleton', function (): void {
-    $restClient = app(RestClientInterface::class);
+    expect(app(LaravelSonarrRestClient::class))->toBeInstanceOf(LaravelSonarrRestClient::class);
+});
 
-    expect($restClient)->toBeInstanceOf(LaravelRestClient::class);
+it('considers the LaravelSonarrRestClient a Rest Client', function (): void {
+    expect(app(LaravelSonarrRestClient::class))->toBeInstanceOf(RestClientInterface::class);
 });
 
 it('registers Core Sonarr as primary singleton', function (): void {
-    $sonarr = app('sonarr');
-
-    expect($sonarr)->toBeInstanceOf(CoreSonarr::class);
+    expect(app('sonarr'))->toBeInstanceOf(CoreSonarr::class);
 });
 
 it('resolves Core Sonarr from the facade', function (): void {
@@ -38,7 +38,5 @@ it('resolves Core Sonarr from the facade', function (): void {
 });
 
 it('resolves Core Sonarr via type hint', function (): void {
-    $sonarr = app(CoreSonarr::class);
-
-    expect($sonarr)->toBeInstanceOf(CoreSonarr::class);
+    expect(app(CoreSonarr::class))->toBeInstanceOf(CoreSonarr::class);
 });
