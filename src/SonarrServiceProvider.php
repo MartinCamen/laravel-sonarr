@@ -2,8 +2,7 @@
 
 namespace MartinCamen\LaravelSonarr;
 
-use MartinCamen\ArrCore\Client\RestClientInterface;
-use MartinCamen\LaravelSonarr\Client\LaravelRestClient;
+use MartinCamen\LaravelSonarr\Client\LaravelSonarrRestClient;
 use MartinCamen\Sonarr\Client\SonarrApiClient;
 use MartinCamen\Sonarr\Config\SonarrConfiguration;
 use MartinCamen\Sonarr\Sonarr;
@@ -27,8 +26,8 @@ class SonarrServiceProvider extends PackageServiceProvider
         );
 
         $this->app->singleton(
-            RestClientInterface::class,
-            fn($app): RestClientInterface => new LaravelRestClient($app->make(SonarrConfiguration::class)),
+            LaravelSonarrRestClient::class,
+            fn($app): LaravelSonarrRestClient => new LaravelSonarrRestClient($app->make(SonarrConfiguration::class)),
         );
 
         // Internal API client
@@ -43,7 +42,7 @@ class SonarrServiceProvider extends PackageServiceProvider
                 timeout: $config->timeout,
                 urlBase: $config->urlBase,
                 apiVersion: $config->apiVersion,
-                restClient: $app->make(RestClientInterface::class),
+                restClient: $app->make(LaravelSonarrRestClient::class),
             );
         });
 
